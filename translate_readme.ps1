@@ -1,0 +1,1 @@
+uv run ../gemini-test/src/i18n_tool.py --name README.md
