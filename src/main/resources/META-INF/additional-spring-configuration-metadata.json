@@ -1,0 +1,9 @@
+{
+  "properties": [
+    {
+      "name": "mq-config.queue-name",
+      "type": "java.lang.String",
+      "description": "A description for 'mq-config.queue-name'"
+    }
+  ]
+}

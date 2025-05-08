@@ -85,12 +85,12 @@ public class MessageController {
     }
 
     @GetMapping("mq-info")
-    public Map<String, Object> getMQInfo() {
+    public ResponseEntity<Map<String, Object>> getMQInfo() {
         Map<String, Object> info = new HashMap<>();
         info.put("queueManager", mqProperties.getQueueManager());
         info.put("channel", mqProperties.getChannel());
         info.put("connName", mqProperties.getConnName());
         info.put("user", mqProperties.getUser());
-        return info;
+        return ResponseEntity.ok(info);
     }
 }

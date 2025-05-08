@@ -12,3 +12,7 @@ ibm:
     channel: DEV.ADMIN.SVRCONN
     conn-name: localhost(3434)
     user: mqm
+
+# 自定義 MQ 配置
+mq-config:
+  queue-name: DEV.QUEUE.1
