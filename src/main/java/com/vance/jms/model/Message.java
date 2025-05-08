@@ -1,4 +1,4 @@
-package com.vance.jms_test.model;
+package com.vance.jms.model;
 
 import java.io.Serializable;
 
@@ -13,13 +13,13 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Message implements Serializable {
-    
+
     private static final long serialVersionUID = 1L;
-    
+
     private String id;
     private String content;
     private long timestamp;
-    
+
     // 建立一個帶有當前時間戳的新訊息
     public static Message of(String id, String content) {
         return new Message(id, content, System.currentTimeMillis());

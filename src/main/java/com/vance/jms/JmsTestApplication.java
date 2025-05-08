@@ -1,4 +1,4 @@
-package com.vance.jms_test;
+package com.vance.jms;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

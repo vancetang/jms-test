@@ -1,4 +1,4 @@
-package com.vance.jms_test.constant;
+package com.vance.jms.constant;
 
 public final class Constant {
     /**

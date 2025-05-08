@@ -1,11 +1,11 @@
-package com.vance.jms_test.service;
+package com.vance.jms.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 
-import com.vance.jms_test.constant.Constant;
-import com.vance.jms_test.model.Message;
+import com.vance.jms.constant.Constant;
+import com.vance.jms.model.Message;
 
 import lombok.extern.slf4j.Slf4j;
 

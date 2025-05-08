@@ -1,4 +1,4 @@
-package com.vance.jms_test.controller;
+package com.vance.jms.controller;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ibm.mq.spring.boot.MQConfigurationProperties;
-import com.vance.jms_test.model.Message;
-import com.vance.jms_test.service.MessageSender;
+import com.vance.jms.model.Message;
+import com.vance.jms.service.MessageSender;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,7 +34,7 @@ public class MessageController {
 
     /**
      * 發送物件訊息
-     * 
+     *
      * @param message 要發送的訊息
      * @return 操作結果
      */
@@ -64,7 +64,7 @@ public class MessageController {
 
     /**
      * 發送文本訊息
-     * 
+     *
      * @param payload 包含文本內容的請求體
      * @return 操作結果
      */

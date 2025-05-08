@@ -68,7 +68,7 @@ curl -X POST http://localhost:8080/api/messages/send-text \
 ## 專案結構
 
 ```
-src/main/java/com/vance/jms_test/
+src/main/java/com/vance/jms/
 ├── config/
 │   └── JmsConfig.java           # JMS 配置類
 ├── constant/

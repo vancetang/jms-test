@@ -1,4 +1,4 @@
-package com.vance.jms_test;
+package com.vance.jms;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
