@@ -1,0 +1,14 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: jms-test
+
+# IBM MQ 配置
+ibm:
+  mq:
+    queue-manager: MQJ006D
+    channel: DEV.ADMIN.SVRCONN
+    conn-name: localhost(3434)
+    user: mqm
