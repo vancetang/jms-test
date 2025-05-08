@@ -6,11 +6,13 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.ibm.mq.spring.boot.MQConfigurationProperties;
 import com.vance.jms_test.model.Message;
 import com.vance.jms_test.service.MessageSender;
 
@@ -21,11 +23,14 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/messages")
+@RequestMapping("/api")
 public class MessageController {
 
     @Autowired
     MessageSender messageSender;
+
+    @Autowired
+    private MQConfigurationProperties mqProperties;
 
     /**
      * 發送物件訊息
@@ -33,7 +38,7 @@ public class MessageController {
      * @param message 要發送的訊息
      * @return 操作結果
      */
-    @PostMapping("/send")
+    @PostMapping("messages/send")
     public ResponseEntity<Map<String, Object>> sendMessage(@RequestBody Message message) {
         log.info("收到發送訊息請求: {}", message);
 
@@ -63,7 +68,7 @@ public class MessageController {
      * @param payload 包含文本內容的請求體
      * @return 操作結果
      */
-    @PostMapping("/send-text")
+    @PostMapping("messages/send-text")
     public ResponseEntity<Map<String, Object>> sendTextMessage(@RequestBody Map<String, String> payload) {
         String text = payload.get("text");
         log.info("收到發送文本訊息請求: {}", text);
@@ -77,5 +82,15 @@ public class MessageController {
         response.put("message", "文本訊息已成功發送");
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("mq-info")
+    public Map<String, Object> getMQInfo() {
+        Map<String, Object> info = new HashMap<>();
+        info.put("queueManager", mqProperties.getQueueManager());
+        info.put("channel", mqProperties.getChannel());
+        info.put("connName", mqProperties.getConnName());
+        info.put("user", mqProperties.getUser());
+        return info;
     }
 }
