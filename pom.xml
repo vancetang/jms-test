@@ -22,6 +22,7 @@
 		<commons.text.version>1.13.0</commons.text.version>
 		<commons.collections4.version>4.4</commons.collections4.version>
 		<guava.version>32.1.2-jre</guava.version>
+		<ibm.mq.version>9.4.2.1</ibm.mq.version>
 	</properties>
 	<dependencies>
 		<!-- ================ Spring 主要 ================ -->
@@ -92,6 +93,12 @@
 		</dependency>
 
 		<!-- ========== 常用Third-Party Library ========== -->
+		<!-- IBM MQ All Client（包含 PCF 支援） -->
+		<dependency>
+			<groupId>com.ibm.mq</groupId>
+			<artifactId>com.ibm.mq.allclient</artifactId>
+			<version>${ibm.mq.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
@@ -112,18 +119,6 @@
 
 	<build>
 		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-compiler-plugin</artifactId>
-				<configuration>
-					<annotationProcessorPaths>
-						<path>
-							<groupId>org.projectlombok</groupId>
-							<artifactId>lombok</artifactId>
-						</path>
-					</annotationProcessorPaths>
-				</configuration>
-			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
