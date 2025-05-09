@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/messages")
 public class MessageController {
 
     @Autowired
@@ -38,7 +38,7 @@ public class MessageController {
      * @param message 要發送的訊息
      * @return 操作結果
      */
-    @PostMapping("messages/send")
+    @PostMapping("send")
     public ResponseEntity<Map<String, Object>> sendMessage(@RequestBody Message message) {
         log.info("收到發送訊息請求: {}", message);
 
@@ -68,7 +68,7 @@ public class MessageController {
      * @param payload 包含文本內容的請求體
      * @return 操作結果
      */
-    @PostMapping("messages/send-text")
+    @PostMapping("send-text")
     public ResponseEntity<Map<String, Object>> sendTextMessage(@RequestBody Map<String, String> payload) {
         String text = payload.get("text");
         log.info("收到發送文本訊息請求: {}", text);
