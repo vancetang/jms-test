@@ -1,5 +1,7 @@
 package com.vance.jms.config;
 
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jms.annotation.EnableJms;
@@ -21,7 +23,7 @@ import jakarta.jms.DeliveryMode;
 public class JmsConfig {
 
     // 訊息過期時間 (10 秒)
-    private static final long MESSAGE_TTL = 10000;
+    private static final long MESSAGE_TTL = TimeUnit.SECONDS.toMillis(10);
 
     /**
      * 配置 JMS 監聽器容器工廠
