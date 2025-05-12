@@ -93,12 +93,6 @@
 		</dependency>
 
 		<!-- ========== 常用Third-Party Library ========== -->
-		<!-- IBM MQ All Client（包含 PCF 支援） -->
-		<dependency>
-			<groupId>com.ibm.mq</groupId>
-			<artifactId>com.ibm.mq.allclient</artifactId>
-			<version>${ibm.mq.version}</version>
-		</dependency>
 		<dependency>
 			<groupId>com.google.guava</groupId>
 			<artifactId>guava</artifactId>
