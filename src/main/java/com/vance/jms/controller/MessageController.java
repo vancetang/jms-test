@@ -6,13 +6,11 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.ibm.mq.spring.boot.MQConfigurationProperties;
 import com.vance.jms.model.Message;
 import com.vance.jms.service.MessageSender;
 
@@ -28,9 +26,6 @@ public class MessageController {
 
     @Autowired
     MessageSender messageSender;
-
-    @Autowired
-    private MQConfigurationProperties mqProperties;
 
     /**
      * 發送物件訊息
@@ -82,15 +77,5 @@ public class MessageController {
         response.put("message", "文本訊息已成功發送");
 
         return ResponseEntity.ok(response);
-    }
-
-    @GetMapping("mq-info")
-    public ResponseEntity<Map<String, Object>> getMQInfo() {
-        Map<String, Object> info = new HashMap<>();
-        info.put("queueManager", mqProperties.getQueueManager());
-        info.put("channel", mqProperties.getChannel());
-        info.put("connName", mqProperties.getConnName());
-        info.put("user", mqProperties.getUser());
-        return ResponseEntity.ok(info);
     }
 }

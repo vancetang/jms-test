@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8090
 
 spring:
   application:
@@ -9,14 +9,10 @@ spring:
 ibm:
   mq:
     queue-manager: MQJ006D
-    channel: DEV.ADMIN.SVRCONN
+    channel: DEV.APP.SVRCONN
     conn-name: localhost(3434)
     user: mqm
-    # 如果需要密碼，請取消註釋下一行並設置密碼
-    # password: your_password_here
-    # 禁用 PCF 命令，直接使用 JMS API
-    # use-ibm-cipher-mappings: true
 
-# 自定義 MQ 配置
+# MQ 配置
 mq-config:
   queue-name: DEV.QUEUE.1
