@@ -45,4 +45,16 @@ public class MessageSender {
         jmsTemplate.convertAndSend(queueName, text);
         log.info("文本訊息已成功發送，將在 10 秒後過期");
     }
+
+    /**
+     * 發送二進制數據到指定隊列，訊息將在 10 秒後自動過期
+     * (過期時間在 JmsTemplate 中全局設定)
+     *
+     * @param bytes 要發送的二進制數據
+     */
+    public void sendByteMessage(byte[] bytes) {
+        log.info("發送二進制數據到隊列 {}: {} bytes", queueName, bytes.length);
+        jmsTemplate.convertAndSend(queueName, bytes);
+        log.info("二進制數據已成功發送，將在 10 秒後過期");
+    }
 }

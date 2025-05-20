@@ -1,19 +1,19 @@
 # JMS Test Project
 
-This is a Spring Boot-based JMS (Java Message Service) test project designed for testing message sending and receiving functionality with IBM MQ. The project provides simple REST API endpoints, allowing users to send messages to IBM MQ queues and configure various message properties, such as expiration time.
+This is a Spring Boot-based JMS (Java Message Service) test project for testing message sending and receiving functionality with IBM MQ. The project provides simple REST API endpoints that allow users to send messages to IBM MQ queues and configure various message properties, such as expiration time.
 
-## Key Features
+## Features
 
 - Based on Spring Boot 3.4.5 and Java 21
 - Integrates IBM MQ JMS Spring Boot Starter
-- Supports sending object messages and text messages
+- Supports sending object messages, text messages, and binary data
 - Automatic message expiration (currently set to 10 seconds)
 - RESTful API interface
 - Extensible message processing architecture
 
 ## System Requirements
 
-- Java 21 or later
+- Java 21 or higher
 - Maven 3.8+ (or use the included Maven Wrapper)
 - IBM MQ server (local or remote)
 
@@ -40,7 +40,7 @@ Start the application using Maven:
 ./mvnw spring-boot:run
 ```
 
-Or execute directly using Java:
+Or execute directly with Java:
 
 ```bash
 ./mvnw clean package
@@ -65,6 +65,16 @@ curl -X POST http://localhost:8080/api/messages/send-text \
   -d '{"text":"這是一條純文本測試訊息"}'
 ```
 
+#### Send Binary Data
+
+```bash
+curl -X POST http://localhost:8080/api/messages/send-bytes \
+  -H "Content-Type: application/json" \
+  -d '{"data":"SGVsbG8gV29ybGQh"}'
+```
+
+> Note: Binary data needs to be Base64 encoded first. In the example above, "SGVsbG8gV29ybGQh" is the Base64 encoding of "Hello World!".
+
 ## Project Structure
 
 ```
@@ -83,45 +93,46 @@ src/main/java/com/vance/jms/
 └── JmsTestApplication.java      # Application Entry Point
 ```
 
-## To-Do List and Future Test Plans
+## To-Do and Future Test Plans
 
-The following are future tests and feature enhancements that can be performed:
+The following are future tests and feature extensions that can be performed:
 
 ### Basic Functionality Testing
 
-- [ ] Test sending and receiving different types of messages (JSON, XML, binary, etc.)
-- [ ] Test batch processing capabilities for large numbers of messages
-- [ ] Test persistent and non-persistent message modes
-- [ ] Verify message expiration mechanism in different scenarios
+- [x] Test sending and receiving different types of messages (JSON, text, binary, etc.)
+- [ ] Test sending and receiving other message formats (XML, etc.)
+- [ ] Test the batch processing capability of large numbers of messages
+- [ ] Test message persistence and non-persistence modes
+- [ ] Verify the message expiration mechanism in different scenarios
 
 ### Performance Testing
 
 - [ ] Conduct high-concurrency message sending tests (messages processed per second)
 - [ ] Measure message processing latency
 - [ ] Evaluate system stability under high load
-- [ ] Test memory usage during long-running operations
+- [ ] Test memory usage during long-term operation
 
 ### Error Handling and Recovery
 
-- [ ] Test error handling when MQ connection is interrupted
-- [ ] Implement and test message retry mechanism
-- [ ] Test dead letter queue functionality when message processing fails
-- [ ] Develop and test transaction support for message processing
+- [ ] Test error handling when the MQ connection is interrupted
+- [ ] Implement and test message retry mechanisms
+- [ ] Test the dead-letter queue functionality when message processing fails
+- [ ] Develop and test transactional support for message processing
 
 ### Security Testing
 
-- [ ] Implement and test SSL/TLS encryption for MQ connection
-- [ ] Test message content encryption
+- [ ] Implement and test SSL/TLS encryption for MQ connections
+- [ ] Test message content encryption functionality
 - [ ] Implement role-based message sending permission control
 - [ ] Audit log recording and security event monitoring
 
-### Feature Enhancements
+### Feature Expansion
 
-- [ ] Implement message priority setting
+- [ ] Implement message priority setting functionality
 - [ ] Add message confirmation receipt mechanism
 - [ ] Develop message routing functionality (based on content or headers)
 - [ ] Implement message filter functionality
-- [ ] Add message compression to improve efficiency
+- [ ] Add message compression functionality to improve efficiency
 - [ ] Develop message converters to support conversions between different formats
 
 ### Monitoring and Management
@@ -133,7 +144,7 @@ The following are future tests and feature enhancements that can be performed:
 
 ### Integration Testing
 
-- [ ] Integration testing with other systems (e.g., databases, caches, etc.)
+- [ ] Integration testing with other systems (such as databases, caches, etc.)
 - [ ] Test message passing in a microservices architecture
 - [ ] Implement and test message-driven event processing flows
 - [ ] Test interoperability with other message middleware
@@ -141,13 +152,13 @@ The following are future tests and feature enhancements that can be performed:
 ### Documentation and Examples
 
 - [ ] Write detailed API documentation
-- [ ] Provide example code for various usage scenarios
+- [ ] Provide sample code for various usage scenarios
 - [ ] Create a performance test report template
-- [ ] Write a deployment guide and best practices
+- [ ] Write deployment guides and best practices
 
 ## Contribution Guidelines
 
-Feel free to submit a Pull Request or open an Issue to improve this project. Before submitting code, please ensure that:
+Feel free to submit Pull Requests or open Issues to improve this project. Before submitting code, please ensure that:
 
 1. The code conforms to the project's coding style
 2. Appropriate unit tests have been added

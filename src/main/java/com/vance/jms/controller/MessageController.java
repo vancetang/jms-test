@@ -1,5 +1,6 @@
 package com.vance.jms.controller;
 
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -75,6 +76,34 @@ public class MessageController {
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("message", "文本訊息已成功發送");
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * 發送二進制數據訊息
+     * 接受 Base64 編碼的二進制數據
+     *
+     * @param payload 包含 Base64 編碼的二進制數據的請求體
+     * @return 操作結果
+     */
+    @PostMapping("send-bytes")
+    public ResponseEntity<Map<String, Object>> sendByteMessage(@RequestBody Map<String, String> payload) {
+        String base64Data = payload.get("data");
+        log.info("收到發送二進制數據請求: {} 字符的 Base64 數據", base64Data.length());
+
+        // 解碼 Base64 數據
+        byte[] bytes = Base64.getDecoder().decode(base64Data);
+        log.info("解碼後的二進制數據大小: {} bytes", bytes.length);
+
+        // 發送二進制數據
+        messageSender.sendByteMessage(bytes);
+
+        // 返回結果
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "二進制數據已成功發送");
+        response.put("byteLength", bytes.length);
 
         return ResponseEntity.ok(response);
     }

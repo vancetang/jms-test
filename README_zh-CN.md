@@ -1,13 +1,13 @@
 # JMS 测试项目
 
-这是一个基于 Spring Boot 的 JMS (Java Message Service) 测试项目，用于测试与 IBM MQ 的消息传递和接收功能。项目提供了简单的 REST API 端点，允许用户发送消息到 IBM MQ 队列，并可以配置消息的各种属性，如过期时间等。
+这是一个基于 Spring Boot 的 JMS (Java Message Service) 测试项目，用于测试与 IBM MQ 的消息发送和接收功能。项目提供了简单的 REST API 端点，允许用户发送消息到 IBM MQ 队列，并可以配置消息的各种属性，如过期时间等。
 
 ## 功能特点
 
 - 基于 Spring Boot 3.4.5 和 Java 21
 - 整合 IBM MQ JMS Spring Boot Starter
-- 支持发送对象消息和文本消息
-- 消息自动过期功能 (目前设定为 10 秒)
+- 支持发送对象消息、文本消息和二进制数据
+- 消息自动过期功能 (目前设置为 10 秒)
 - RESTful API 接口
 - 可扩展的消息处理架构
 
@@ -65,6 +65,16 @@ curl -X POST http://localhost:8080/api/messages/send-text \
   -d '{"text":"这是一条纯文本测试消息"}'
 ```
 
+#### 发送二进制数据
+
+```bash
+curl -X POST http://localhost:8080/api/messages/send-bytes \
+  -H "Content-Type: application/json" \
+  -d '{"data":"SGVsbG8gV29ybGQh"}'
+```
+
+> 注意：二进制数据需要先进行 Base64 编码。上面的例子中，"SGVsbG8gV29ybGQh" 是 "Hello World!" 的 Base64 编码。
+
 ## 项目结构
 
 ```
@@ -89,8 +99,9 @@ src/main/java/com/vance/jms/
 
 ### 基础功能测试
 
-- [ ] 测试不同类型消息的发送和接收 (JSON、XML、二进制等)
-- [ ] 测试大量消息的批量处理能力
+- [x] 测试不同类型消息的发送和接收 (JSON、文本、二进制等)
+- [ ] 测试其他格式消息的发送和接收 (XML等)
+- [ ] 测试大量消息的批处理能力
 - [ ] 测试消息的持久化和非持久化模式
 - [ ] 验证消息过期机制在不同场景下的表现
 
@@ -117,7 +128,7 @@ src/main/java/com/vance/jms/
 
 ### 功能扩展
 
-- [ ] 实现消息优先级设定功能
+- [ ] 实现消息优先级设置功能
 - [ ] 添加消息确认回执机制
 - [ ] 开发消息路由功能 (基于内容或标头)
 - [ ] 实现消息过滤器功能

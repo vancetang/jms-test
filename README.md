@@ -6,7 +6,7 @@
 
 - 基於 Spring Boot 3.4.5 和 Java 21
 - 整合 IBM MQ JMS Spring Boot Starter
-- 支援發送物件訊息和文本訊息
+- 支援發送物件訊息、文本訊息和二進制數據
 - 訊息自動過期功能 (目前設定為 10 秒)
 - RESTful API 介面
 - 可擴展的訊息處理架構
@@ -65,6 +65,16 @@ curl -X POST http://localhost:8080/api/messages/send-text \
   -d '{"text":"這是一條純文本測試訊息"}'
 ```
 
+#### 發送二進制數據
+
+```bash
+curl -X POST http://localhost:8080/api/messages/send-bytes \
+  -H "Content-Type: application/json" \
+  -d '{"data":"SGVsbG8gV29ybGQh"}'
+```
+
+> 注意：二進制數據需要先進行 Base64 編碼。上面的例子中，"SGVsbG8gV29ybGQh" 是 "Hello World!" 的 Base64 編碼。
+
 ## 專案結構
 
 ```
@@ -89,7 +99,8 @@ src/main/java/com/vance/jms/
 
 ### 基礎功能測試
 
-- [ ] 測試不同類型訊息的發送和接收 (JSON、XML、二進制等)
+- [x] 測試不同類型訊息的發送和接收 (JSON、文本、二進制等)
+- [ ] 測試其他格式訊息的發送和接收 (XML等)
 - [ ] 測試大量訊息的批次處理能力
 - [ ] 測試訊息的持久化和非持久化模式
 - [ ] 驗證訊息過期機制在不同場景下的表現
