@@ -8,7 +8,7 @@ import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 
 import com.vance.jms.config.JmsConfig;
-import com.vance.jms.model.Message;
+import com.vance.jms.model.CustomMessage;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,7 +31,7 @@ public class MessageSender {
      *
      * @param message 要發送的訊息
      */
-    public void sendMessage(Message message) {
+    public void sendMessage(CustomMessage message) {
         log.info("發送訊息到隊列 {}: {}", queueName, message);
         jmsTemplate.convertAndSend(queueName, message);
         log.info("訊息已成功發送，將在 {} 秒後過期", TimeUnit.MILLISECONDS.toSeconds(JmsConfig.MESSAGE_TTL));

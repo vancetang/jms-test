@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.vance.jms.model.Message;
+import com.vance.jms.model.CustomMessage;
 import com.vance.jms.service.MessageSender;
 
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,7 @@ public class MessageController {
      * @return 操作結果
      */
     @PostMapping("send")
-    public ResponseEntity<Map<String, Object>> sendMessage(@RequestBody Message message) {
+    public ResponseEntity<Map<String, Object>> sendMessage(@RequestBody CustomMessage message) {
         log.info("收到發送訊息請求: {}", message);
 
         // 如果沒有提供 ID，則生成一個

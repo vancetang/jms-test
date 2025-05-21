@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Message implements Serializable {
+public class CustomMessage implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -21,7 +21,7 @@ public class Message implements Serializable {
     private long timestamp;
 
     // 建立一個帶有當前時間戳的新訊息
-    public static Message of(String id, String content) {
-        return new Message(id, content, System.currentTimeMillis());
+    public static CustomMessage of(String id, String content) {
+        return new CustomMessage(id, content, System.currentTimeMillis());
     }
 }
