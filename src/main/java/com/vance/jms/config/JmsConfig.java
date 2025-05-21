@@ -23,7 +23,7 @@ import jakarta.jms.DeliveryMode;
 public class JmsConfig {
 
     // 訊息過期時間 (10 秒)
-    private static final long MESSAGE_TTL = TimeUnit.SECONDS.toMillis(10);
+    public static final long MESSAGE_TTL = TimeUnit.SECONDS.toMillis(100);
 
     /**
      * 配置 JMS 監聽器容器工廠

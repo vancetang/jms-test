@@ -1,10 +1,13 @@
 package com.vance.jms.service;
 
+import java.util.concurrent.TimeUnit;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 
+import com.vance.jms.config.JmsConfig;
 import com.vance.jms.model.Message;
 
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +34,7 @@ public class MessageSender {
     public void sendMessage(Message message) {
         log.info("發送訊息到隊列 {}: {}", queueName, message);
         jmsTemplate.convertAndSend(queueName, message);
-        log.info("訊息已成功發送，將在 10 秒後過期");
+        log.info("訊息已成功發送，將在 {} 秒後過期", TimeUnit.MILLISECONDS.toSeconds(JmsConfig.MESSAGE_TTL));
     }
 
     /**
@@ -43,7 +46,7 @@ public class MessageSender {
     public void sendTextMessage(String text) {
         log.info("發送文本訊息到隊列 {}: {}", queueName, text);
         jmsTemplate.convertAndSend(queueName, text);
-        log.info("文本訊息已成功發送，將在 10 秒後過期");
+        log.info("文本訊息已成功發送，將在 {} 秒後過期", TimeUnit.MILLISECONDS.toSeconds(JmsConfig.MESSAGE_TTL));
     }
 
     /**
@@ -55,6 +58,6 @@ public class MessageSender {
     public void sendByteMessage(byte[] bytes) {
         log.info("發送二進制數據到隊列 {}: {} bytes", queueName, bytes.length);
         jmsTemplate.convertAndSend(queueName, bytes);
-        log.info("二進制數據已成功發送，將在 10 秒後過期");
+        log.info("二進制數據已成功發送，將在 {} 秒後過期", TimeUnit.MILLISECONDS.toSeconds(JmsConfig.MESSAGE_TTL));
     }
 }
