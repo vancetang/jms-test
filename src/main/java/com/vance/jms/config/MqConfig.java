@@ -13,4 +13,9 @@ public class MqConfig {
      * 要連接的隊列名稱
      */
     private String queueName;
+
+    /**
+     * 訊息過期時間 (秒)
+     */
+    private int messageTtlSeconds;
 }

@@ -2,6 +2,7 @@ package com.vance.jms.config;
 
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jms.annotation.EnableJms;
@@ -22,8 +23,8 @@ import jakarta.jms.DeliveryMode;
 @EnableJms
 public class JmsConfig {
 
-    // 訊息過期時間 (10 秒)
-    public static final long MESSAGE_TTL = TimeUnit.SECONDS.toMillis(100);
+    @Autowired
+    MqConfig mqConfig;
 
     /**
      * 配置 JMS 監聽器容器工廠
@@ -47,8 +48,8 @@ public class JmsConfig {
         // 啟用明確的 QoS 設定
         jmsTemplate.setExplicitQosEnabled(true);
 
-        // 設定訊息過期時間為 10 秒
-        jmsTemplate.setTimeToLive(MESSAGE_TTL);
+        // 設定訊息過期時間
+        jmsTemplate.setTimeToLive(TimeUnit.SECONDS.toMillis(mqConfig.getMessageTtlSeconds()));
 
         // 設定訊息傳遞模式 (PERSISTENT 或 NON_PERSISTENT)
         jmsTemplate.setDeliveryMode(DeliveryMode.NON_PERSISTENT);

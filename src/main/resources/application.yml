@@ -16,3 +16,4 @@ ibm:
 # MQ 配置
 mq-config:
   queue-name: DEV.QUEUE.1
+  message-ttl-seconds: 100
