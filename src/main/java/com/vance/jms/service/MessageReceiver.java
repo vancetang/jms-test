@@ -26,7 +26,7 @@ public class MessageReceiver {
      *
      * @param message 接收到的原始 JMS 訊息
      */
-    @JmsListener(destination = "${mq-config.queue-name}", containerFactory = "jmsListenerContainerFactory")
+    @JmsListener(destination = "#{@mqConfig.queueName}", containerFactory = "jmsListenerContainerFactory")
     public void onMessage(Message message) {
         try {
             if (message instanceof TextMessage) {
