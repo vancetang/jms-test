@@ -6,13 +6,13 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.springframework.context.ApplicationEventPublisher; // Added import
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.vance.jms.config.MqConfig;
-import com.vance.jms.event.ConnectionPausedEvent; // Added import
-import com.vance.jms.event.ConnectionResumedEvent; // Added import
+import com.vance.jms.event.ConnectionPausedEvent;
+import com.vance.jms.event.ConnectionResumedEvent;
 
 import jakarta.jms.Connection;
 import jakarta.jms.ConnectionFactory;

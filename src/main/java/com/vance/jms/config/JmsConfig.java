@@ -61,10 +61,7 @@ public class JmsConfig {
         // 設定訂閱持久性
         factory.setSubscriptionDurable(false);
 
-        // 禁用 DefaultMessageListenerContainer 的默認重試機制
-        // 設置為 0 表示不進行重試，而是立即失敗
-        // 這樣可以確保使用我們自定義的 MQ 重連機制
-        // factory.setRecoveryInterval(0L);
+        // 停用默認重試機制
         BackOff backOff = new BackOff() {
             @Override
             public BackOffExecution start() {

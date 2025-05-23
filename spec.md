@@ -72,17 +72,19 @@ JMS 測試應用程式是一個基於 Spring Boot 的 Java 應用程式，用於
 
 ### 2.4 MQ 斷線重連機制
 
-- **自動重連**：定期檢查連線狀態，自動嘗試重新連線
+- **連線狀態監控**：定期檢查連線狀態（每 10 秒），及時發現連線中斷
+- **自動重連**：定期嘗試重新連線（每隔 `reconnectIntervalSeconds` 秒）
 - **重連策略**：可配置的重連間隔、最大嘗試次數和暫停時間
-- **事件通知**：連線狀態變化時發布事件
+- **事件通知**：連線狀態變化時發布事件（ConnectionPausedEvent 和 ConnectionResumedEvent）
 - **監聽器管理**：根據連線狀態自動停止和啟動 JMS 監聽器
+- **禁用默認重試**：禁用 DefaultMessageListenerContainer 的默認重試機制，使用自定義的 MQ 重連機制
 
 ## 3. 技術規格
 
 ### 3.1 開發環境
 
 - **Java 版本**：Java 21
-- **框架**：Spring Boot 3.5.0
+- **框架**：Spring Boot
 - **構建工具**：Maven 3.8+
 - **訊息中介軟體**：IBM MQ
 
@@ -127,7 +129,7 @@ sequenceDiagram
     Client->>MessageController: 發送訊息請求
     MessageController->>MessageSender: 調用發送方法
     MessageSender->>MqConnectionService: 檢查連線狀態
-    
+
     alt 連線正常
         MqConnectionService-->>MessageSender: 返回連線正常
         MessageSender->>IBM_MQ: 發送訊息
@@ -151,10 +153,10 @@ sequenceDiagram
 
     IBM_MQ->>MessageReceiver: 接收訊息
     MessageReceiver->>MqConnectionService: 檢查連線狀態
-    
+
     alt 連線正常
         MqConnectionService-->>MessageReceiver: 返回連線正常
-        
+
         alt 文本訊息
             MessageReceiver->>MessageReceiver: 處理文本訊息
         else 物件訊息
@@ -162,7 +164,7 @@ sequenceDiagram
         else 二進制訊息
             MessageReceiver->>MessageReceiver: 處理二進制訊息
         end
-        
+
     else 連線中斷
         MqConnectionService-->>MessageReceiver: 返回連線中斷
         MessageReceiver->>MessageReceiver: 拋出 JMSException
@@ -177,23 +179,55 @@ sequenceDiagram
     participant JmsLifecycleManagerService
     participant MessageReceiver
     participant IBM_MQ
+    participant JmsTestApplication
 
-    loop 定期檢查
-        MqConnectionService->>IBM_MQ: 嘗試建立連線
-        
-        alt 連線成功
-            IBM_MQ-->>MqConnectionService: 連線成功
-            MqConnectionService->>MqConnectionService: 更新連線狀態為已連線
-            MqConnectionService->>JmsLifecycleManagerService: 發布 ConnectionResumedEvent
-            JmsLifecycleManagerService->>MessageReceiver: 啟動 JMS 監聽器
-        else 連線失敗
+    note over JmsTestApplication: 應用程式啟動
+    JmsTestApplication->>MqConnectionService: 初始化
+    MqConnectionService->>IBM_MQ: 嘗試建立初始連線
+
+    alt 初始連線成功
+        IBM_MQ-->>MqConnectionService: 連線成功
+        MqConnectionService->>MqConnectionService: 更新連線狀態為已連線
+        MqConnectionService->>JmsLifecycleManagerService: 發布 ConnectionResumedEvent
+        JmsLifecycleManagerService->>MessageReceiver: 啟動 JMS 監聽器
+        JmsTestApplication->>MessageReceiver: 手動啟動 JMS 監聽器
+    else 初始連線失敗
+        IBM_MQ-->>MqConnectionService: 連線失敗
+        MqConnectionService->>MqConnectionService: 增加重試計數
+        MqConnectionService->>MqConnectionService: 啟動重連機制
+    end
+
+    loop 定期檢查連線狀態 (每 10 秒)
+        MqConnectionService->>IBM_MQ: 檢查連線狀態
+
+        alt 檢測到連線中斷
             IBM_MQ-->>MqConnectionService: 連線失敗
-            MqConnectionService->>MqConnectionService: 增加重試計數
-            
-            alt 達到最大重試次數
-                MqConnectionService->>MqConnectionService: 設置暫停時間
-                MqConnectionService->>JmsLifecycleManagerService: 發布 ConnectionPausedEvent
-                JmsLifecycleManagerService->>MessageReceiver: 停止 JMS 監聽器
+            MqConnectionService->>MqConnectionService: 更新連線狀態為中斷
+            MqConnectionService->>JmsLifecycleManagerService: 發布 ConnectionPausedEvent
+            JmsLifecycleManagerService->>MessageReceiver: 停止 JMS 監聽器
+            MqConnectionService->>MqConnectionService: 立即嘗試重連
+        end
+    end
+
+    loop 定期重連嘗試 (每 reconnectIntervalSeconds 秒)
+        alt 連線中斷
+            MqConnectionService->>IBM_MQ: 嘗試建立連線
+
+            alt 連線成功
+                IBM_MQ-->>MqConnectionService: 連線成功
+                MqConnectionService->>MqConnectionService: 更新連線狀態為已連線
+                MqConnectionService->>MqConnectionService: 重置重試計數
+                MqConnectionService->>JmsLifecycleManagerService: 發布 ConnectionResumedEvent
+                JmsLifecycleManagerService->>MessageReceiver: 啟動 JMS 監聽器
+            else 連線失敗
+                IBM_MQ-->>MqConnectionService: 連線失敗
+                MqConnectionService->>MqConnectionService: 增加重試計數
+
+                alt 達到最大重試次數
+                    MqConnectionService->>MqConnectionService: 設置暫停時間
+                    MqConnectionService->>JmsLifecycleManagerService: 發布 ConnectionPausedEvent
+                    JmsLifecycleManagerService->>MessageReceiver: 停止 JMS 監聽器
+                end
             end
         end
     end
@@ -205,21 +239,22 @@ sequenceDiagram
 classDiagram
     class JmsTestApplication {
         +main(String[] args) void
+        -startJmsListeners(ConfigurableApplicationContext context) void
     }
-    
+
     class MessageController {
         -MessageSender messageSender
         +sendMessage(CustomMessage message) ResponseEntity
         +sendTextMessage(Map payload) ResponseEntity
         +sendByteMessage(Map payload) ResponseEntity
     }
-    
+
     class ConnectionController {
         -MqConnectionService mqConnectionService
         +triggerReconnect() ResponseEntity
         +getStatus() ResponseEntity
     }
-    
+
     class MessageSender {
         -JmsTemplate jmsTemplate
         -MqConfig mqConfig
@@ -228,7 +263,7 @@ classDiagram
         +sendTextMessage(String text) void
         +sendByteMessage(byte[] bytes) void
     }
-    
+
     class MessageReceiver {
         -MqConnectionService mqConnectionService
         +onMessage(Message message) void
@@ -236,7 +271,7 @@ classDiagram
         -handleTextMessage(String text) void
         -handleByteMessage(byte[] bytes) void
     }
-    
+
     class MqConnectionService {
         -MqConfig mqConfig
         -ConnectionFactory connectionFactory
@@ -247,18 +282,22 @@ classDiagram
         -boolean wasPaused
         +checkAndEstablishConnection() void
         +scheduledReconnectTask() void
+        +scheduledConnectionStatusCheck() void
+        +checkConnectionStatus() void
         +triggerManualReconnect() void
         +isConnected() boolean
         +getCurrentReconnectAttempts() int
         +getPausedUntil() LocalDateTime
     }
-    
+
     class JmsLifecycleManagerService {
         -JmsListenerEndpointRegistry jmsListenerEndpointRegistry
+        -MqConnectionService mqConnectionService
+        +init() void
         +handleConnectionPaused(ConnectionPausedEvent event) void
         +handleConnectionResumed(ConnectionResumedEvent event) void
     }
-    
+
     class JmsConfig {
         -MqConfig mqConfig
         -JmsListenerEndpointRegistry jmsListenerEndpointRegistry
@@ -266,8 +305,9 @@ classDiagram
         +jmsListenerContainerFactory(ConnectionFactory connectionFactory) JmsListenerContainerFactory
         +jmsTemplate(ConnectionFactory connectionFactory) JmsTemplate
         +jacksonJmsMessageConverter() MessageConverter
+        +disableDefaultRetryMechanism() BackOff
     }
-    
+
     class MqConfig {
         -String queueName
         -int messageTtlSeconds
@@ -275,31 +315,31 @@ classDiagram
         -int maxReconnectAttempts
         -int reconnectPauseMinutes
     }
-    
+
     class CustomMessage {
         -String id
         -String content
         -long timestamp
         +of(String id, String content) CustomMessage
     }
-    
+
     class ConnectionPausedEvent {
         -LocalDateTime pausedUntil
         +getPausedUntil() LocalDateTime
     }
-    
+
     class ConnectionResumedEvent {
         -LocalDateTime resumeTime
         -boolean recovery
         +getResumeTime() LocalDateTime
         +isRecovery() boolean
     }
-    
+
     class MqNotConnectedException {
         +MqNotConnectedException(String message)
         +MqNotConnectedException(String message, Throwable cause)
     }
-    
+
     JmsTestApplication --> MessageController
     JmsTestApplication --> ConnectionController
     JmsTestApplication --> MessageSender
@@ -307,25 +347,25 @@ classDiagram
     JmsTestApplication --> MqConnectionService
     JmsTestApplication --> JmsLifecycleManagerService
     JmsTestApplication --> JmsConfig
-    
+
     MessageController --> MessageSender
     ConnectionController --> MqConnectionService
-    
+
     MessageSender --> MqConnectionService
     MessageSender --> MqConfig
-    
+
     MessageReceiver --> MqConnectionService
-    
+
     MqConnectionService --> MqConfig
     MqConnectionService --> ConnectionPausedEvent
     MqConnectionService --> ConnectionResumedEvent
-    
+
     JmsLifecycleManagerService --> ConnectionPausedEvent
     JmsLifecycleManagerService --> ConnectionResumedEvent
-    
+
     JmsConfig --> MqConfig
     JmsConfig --> MqConnectionService
-    
+
     MessageSender --> MqNotConnectedException
 ```
 
@@ -338,6 +378,8 @@ classDiagram
   - 發送訊息時，如果 MQ 連線中斷，拋出 MqNotConnectedException
   - 控制器層捕獲異常，返回 HTTP 503 (Service Unavailable) 錯誤
   - 自動重連機制嘗試重新建立連線
+  - 連線中斷時停止 JMS 監聽器，避免無效的消息處理
+  - 連線恢復時啟動 JMS 監聽器，恢復消息處理
 
 ### 6.2 訊息處理錯誤
 
@@ -346,6 +388,8 @@ classDiagram
   - 接收訊息時，如果處理失敗，記錄錯誤日誌
   - 根據錯誤類型採取不同的處理策略
   - 如果是 MQ 連線錯誤，JMS 監聽器會自動停止
+  - 禁用 DefaultMessageListenerContainer 的默認重試機制，使用自定義的 MQ 重連機制
+  - 在 MessageReceiver 中檢查 MQ 連線狀態，如果連線中斷則拋出 JMSException
 
 ## 7. 安全考慮
 
@@ -358,3 +402,6 @@ classDiagram
 - **連線池**：使用 IBM MQ 的連線池機制
 - **訊息過期**：設置訊息過期時間，避免隊列堆積
 - **重連策略**：可配置的重連間隔和暫停時間，避免頻繁重連
+- **監聽器管理**：根據連線狀態自動停止和啟動 JMS 監聽器，避免無效的消息處理
+- **連線狀態檢查**：定期檢查連線狀態，及時發現連線中斷
+- **事件驅動**：使用事件驅動機制，實現鬆耦合的系統架構

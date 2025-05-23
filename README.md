@@ -22,7 +22,7 @@
 
 ## 技術架構
 
-- **Spring Boot 3.5.0**：應用程式框架
+- **Spring Boot**：應用程式框架
 - **IBM MQ JMS Spring Boot Starter**：IBM MQ 的 Spring Boot 整合
 - **Spring Web**：RESTful API 支援
 - **Spring Actuator**：應用程式監控
@@ -87,7 +87,8 @@ java -jar target/jms-test-0.0.1-SNAPSHOT.jar
 
 #### 連線狀態監控
 - MqConnectionService 維護連線狀態，使用 AtomicBoolean 確保線程安全
-- 定期檢查連線狀態並嘗試重新連線（每隔 `reconnectIntervalSeconds` 秒）
+- 定期檢查連線狀態（每 10 秒）並在檢測到連線中斷時嘗試重新連線
+- 定期嘗試重新連線（每隔 `reconnectIntervalSeconds` 秒）
 - 如果連續失敗達到 `maxReconnectAttempts` 次，重連機制將暫停 `reconnectPauseMinutes` 分鐘
 
 #### 事件發布機制
@@ -96,9 +97,11 @@ java -jar target/jms-test-0.0.1-SNAPSHOT.jar
 - JmsLifecycleManagerService 監聽這些事件並管理 JMS 監聽器生命週期
 
 #### JMS 監聽器生命週期管理
-- JmsListenerContainerFactory 設定為不自動啟動
+- JmsListenerContainerFactory 設定為自動啟動，但由 JmsLifecycleManagerService 控制啟動和停止
+- 禁用 DefaultMessageListenerContainer 的默認重試機制，使用自定義的 MQ 重連機制
 - 連線中斷時停止 JMS 監聽器，避免無效的消息處理
 - 連線恢復時啟動 JMS 監聽器，恢復消息處理
+- 應用程式啟動時，在 main 方法中手動啟動 JMS 監聽器，確保監聽器正確啟動
 
 #### 訊息發送與接收處理
 - MessageSender 在發送訊息前檢查連線狀態，如果連線中斷則拋出 MqNotConnectedException

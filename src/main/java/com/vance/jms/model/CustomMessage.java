@@ -20,7 +20,13 @@ public class CustomMessage implements Serializable {
     private String content;
     private long timestamp;
 
-    // 建立一個帶有當前時間戳的新訊息
+    /**
+     * 建立一個新的 CustomMessage 物件
+     *
+     * @param id
+     * @param content
+     * @return
+     */
     public static CustomMessage of(String id, String content) {
         return new CustomMessage(id, content, System.currentTimeMillis());
     }

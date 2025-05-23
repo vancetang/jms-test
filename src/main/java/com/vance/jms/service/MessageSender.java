@@ -34,9 +34,7 @@ public class MessageSender {
      * @throws MqNotConnectedException if MQ is not connected
      */
     public void sendMessage(CustomMessage message) {
-        if (!mqConnectionService.isConnected()) {
-            throw new MqNotConnectedException("Cannot send message. MQ is not connected.");
-        }
+        this.checkConnection();
         log.info("發送訊息到隊列 {}: {}", mqConfig.getQueueName(), message);
         jmsTemplate.convertAndSend(mqConfig.getQueueName(), message);
         log.info("訊息已成功發送，將在 {} 秒後過期", mqConfig.getMessageTtlSeconds());
@@ -50,9 +48,7 @@ public class MessageSender {
      * @throws MqNotConnectedException if MQ is not connected
      */
     public void sendTextMessage(String text) {
-        if (!mqConnectionService.isConnected()) {
-            throw new MqNotConnectedException("Cannot send text message. MQ is not connected.");
-        }
+        this.checkConnection();
         log.info("發送文本訊息到隊列 {}: {}", mqConfig.getQueueName(), text);
         jmsTemplate.convertAndSend(mqConfig.getQueueName(), text);
         log.info("文本訊息已成功發送，將在 {} 秒後過期", mqConfig.getMessageTtlSeconds());
@@ -66,11 +62,20 @@ public class MessageSender {
      * @throws MqNotConnectedException if MQ is not connected
      */
     public void sendByteMessage(byte[] bytes) {
-        if (!mqConnectionService.isConnected()) {
-            throw new MqNotConnectedException("Cannot send byte message. MQ is not connected.");
-        }
+        this.checkConnection();
         log.info("發送二進制數據到隊列 {}: {} bytes", mqConfig.getQueueName(), bytes.length);
         jmsTemplate.convertAndSend(mqConfig.getQueueName(), bytes);
         log.info("二進制數據已成功發送，將在 {} 秒後過期", mqConfig.getMessageTtlSeconds());
+    }
+
+    /**
+     * 檢查MQ是否已連線
+     * 
+     * @throws MqNotConnectedException if MQ is not connected
+     */
+    private void checkConnection() {
+        if (!mqConnectionService.isConnected()) {
+            throw new MqNotConnectedException("MQ is not connected.");
+        }
     }
 }

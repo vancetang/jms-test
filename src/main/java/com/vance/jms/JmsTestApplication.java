@@ -26,7 +26,7 @@ public class JmsTestApplication {
 		log.info("JMS 測試應用程式啟動完成!!");
 		log.info("您可以使用 POST /api/messages/send 或 POST /api/messages/send-text 發送訊息");
 
-		// 在應用程式啟動後，手動啟動 JMS 監聽器
+		// 在應用程式啟動後，啟動 JMS 監聽器
 		try {
 			MqConnectionService mqConnectionService = context.getBean(MqConnectionService.class);
 			if (mqConnectionService.isConnected()) {
