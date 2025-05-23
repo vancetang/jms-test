@@ -8,10 +8,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jms.annotation.EnableJms;
 import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
 import org.springframework.jms.config.JmsListenerContainerFactory;
+import org.springframework.jms.config.JmsListenerEndpointRegistry; // Added import
 import org.springframework.jms.core.JmsTemplate;
 import org.springframework.jms.support.converter.MappingJackson2MessageConverter;
 import org.springframework.jms.support.converter.MessageConverter;
 import org.springframework.jms.support.converter.MessageType;
+
+import com.vance.jms.service.MqConnectionService; // Added import
 
 import jakarta.jms.ConnectionFactory;
 import jakarta.jms.DeliveryMode;
@@ -26,6 +29,12 @@ public class JmsConfig {
     @Autowired
     MqConfig mqConfig;
 
+    @Autowired
+    JmsListenerEndpointRegistry jmsListenerEndpointRegistry; // Added field
+
+    @Autowired
+    MqConnectionService mqConnectionService; // Added field
+
     /**
      * 配置 JMS 監聽器容器工廠
      */
@@ -34,6 +43,8 @@ public class JmsConfig {
         DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(jacksonJmsMessageConverter());
+        // Future: Could integrate with mqConnectionService to stop/start listeners
+        // based on connection state events.
         return factory;
     }
 
