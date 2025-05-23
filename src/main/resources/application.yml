@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: jms-test
+  main:
+    allow-circular-references: true
 
 # IBM MQ 配置
 ibm:
