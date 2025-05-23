@@ -49,7 +49,7 @@ public class JmsConfig {
             log.error("JMS 監聽器錯誤處理: {}, {}", t.getMessage(), t);
         });
 
-        // 設定並發消費者數量
+        // 設定並發消費者數量(視情況可調整併發的數量)
         factory.setConcurrency("1-1");
 
         // 設定接收超時
