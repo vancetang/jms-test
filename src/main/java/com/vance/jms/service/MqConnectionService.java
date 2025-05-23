@@ -1,12 +1,15 @@
 package com.vance.jms.service;
 
 import com.vance.jms.config.MqConfig;
+import com.vance.jms.event.ConnectionPausedEvent; // Added import
+import com.vance.jms.event.ConnectionResumedEvent; // Added import
 import jakarta.jms.ConnectionFactory;
 import jakarta.jms.Connection;
 import jakarta.jms.JMSException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher; // Added import
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -24,16 +27,19 @@ public class MqConnectionService {
 
     private final MqConfig mqConfig;
     private final ConnectionFactory connectionFactory; // Actual IBM MQ ConnectionFactory
+    private final ApplicationEventPublisher eventPublisher; // Added field
 
     @Getter
     private AtomicBoolean connected = new AtomicBoolean(false);
     private AtomicInteger currentReconnectAttempts = new AtomicInteger(0);
     private LocalDateTime pausedUntil = null;
+    private boolean wasPaused = false; // To track if connection resumed from a paused state
 
     @Autowired
-    public MqConnectionService(MqConfig mqConfig, ConnectionFactory connectionFactory) {
+    public MqConnectionService(MqConfig mqConfig, ConnectionFactory connectionFactory, ApplicationEventPublisher eventPublisher) {
         this.mqConfig = mqConfig;
         this.connectionFactory = connectionFactory;
+        this.eventPublisher = eventPublisher; // Injected
         // Initial connection attempt
         log.info("MqConnectionService initialized. Attempting initial connection...");
         checkAndEstablishConnection();
@@ -54,6 +60,7 @@ public class MqConnectionService {
             return;
         } else if (pausedUntil != null && LocalDateTime.now().isAfter(pausedUntil)) {
             log.info("MQ reconnection pause has ended. Resuming connection attempts.");
+            wasPaused = true; // Mark that we are resuming from a paused state
             pausedUntil = null; // Reset pause
             currentReconnectAttempts.set(0); // Reset attempts after pause
         }
@@ -62,31 +69,32 @@ public class MqConnectionService {
             log.warn("Max reconnect attempts ({}) reached. Pausing reconnection for {} minutes.",
                     mqConfig.getMaxReconnectAttempts(), mqConfig.getReconnectPauseMinutes());
             pausedUntil = LocalDateTime.now().plus(mqConfig.getReconnectPauseMinutes(), ChronoUnit.MINUTES);
-            // Potentially notify other parts of the application about the pause
-            // For example, by publishing an application event
-            // applicationEventPublisher.publishEvent(new MqConnectionPausedEvent(this, pausedUntil));
+            eventPublisher.publishEvent(new ConnectionPausedEvent(this, pausedUntil)); // Publish event
             return;
         }
 
         try (Connection connection = connectionFactory.createConnection()) {
-            // The act of creating a connection itself is often enough to verify.
-            // For some providers, connection.start() might be needed or an operation like creating a session.
             connection.start(); // Explicitly start to ensure connectivity
             log.info("Successfully established MQ connection.");
             connected.set(true);
+            
+            // Only publish ResumedEvent if this is a recovery from attempts or a pause.
+            // Not on initial successful connection unless 'wasPaused' or 'currentReconnectAttempts' indicates recovery.
+            boolean isRecovery = currentReconnectAttempts.get() > 0 || wasPaused;
+            
             currentReconnectAttempts.set(0); // Reset attempts on successful connection
-            pausedUntil = null; // Clear any pause
-            // Notify other parts of the application that connection is up
-            // For example, by publishing an application event
-            // applicationEventPublisher.publishEvent(new MqConnectionEstablishedEvent(this));
+            // pausedUntil is already null if we reached here after a pause
+            
+            if (isRecovery) {
+                 eventPublisher.publishEvent(new ConnectionResumedEvent(this));
+                 wasPaused = false; // Reset wasPaused flag
+            }
+            // No need to reset pausedUntil here as it's handled when pause ends or on success
         } catch (JMSException e) {
             connected.set(false);
             currentReconnectAttempts.incrementAndGet();
             log.error("Failed to establish MQ connection. Attempt {}/{}. Error: {} - {}",
                     currentReconnectAttempts.get(), mqConfig.getMaxReconnectAttempts(), e.getClass().getName(), e.getMessage());
-            // Further error details can be logged if e.getCause() is not null or by logging e itself
-            // log.debug("Connection failure stack trace:", e); // For more detailed debugging
-            // Schedule next attempt or handle pause logic if max attempts reached by scheduler
         }
     }
 
@@ -99,9 +107,6 @@ public class MqConnectionService {
         if (!connected.get()) {
             log.info("Scheduled task running: MQ connection is down. Attempting to reconnect...");
             checkAndEstablishConnection();
-        } else {
-            // Optionally, add a periodic health check even if connected.
-            // log.trace("Scheduled task running: MQ connection is active.");
         }
     }
 
@@ -113,14 +118,16 @@ public class MqConnectionService {
         log.info("Manual reconnection triggered.");
         if (pausedUntil != null && LocalDateTime.now().isBefore(pausedUntil)) {
             log.warn("Manual reconnection attempt during pause period. Pause ends at {}. No action taken.", pausedUntil);
-            // Optionally allow overriding the pause, or just log and wait.
-            // For now, we respect the pause. If immediate override is needed, logic can be added here.
              return;
         }
-        // Reset attempts if manual trigger should bypass current count, unless it's in a pause period.
-        // If not paused, give it a fresh set of attempts.
+        if (pausedUntil != null && LocalDateTime.now().isAfter(pausedUntil)) {
+            log.info("Manual trigger finds pause period has just ended. Resetting for fresh attempts.");
+            wasPaused = true; // Consider this a resumption from pause state
+        }
+        
+        // Reset attempts if manual trigger should bypass current count, unless it's in a pause period that hasn't ended.
         if (pausedUntil == null) {
-             log.info("Resetting reconnect attempts for manual trigger.");
+             log.info("Resetting reconnect attempts for manual trigger (not currently paused).");
              currentReconnectAttempts.set(0);
         }
         checkAndEstablishConnection();

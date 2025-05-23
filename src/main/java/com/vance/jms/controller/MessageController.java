@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus; // Added import
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.vance.jms.model.CustomMessage;
 import com.vance.jms.service.MessageSender;
+import com.vance.jms.exception.MqNotConnectedException; // Added import
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,16 +48,31 @@ public class MessageController {
         // 設置時間戳
         message.setTimestamp(System.currentTimeMillis());
 
-        // 發送訊息
-        messageSender.sendMessage(message);
+        try {
+            // 發送訊息
+            messageSender.sendMessage(message);
 
-        // 返回結果
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "訊息已成功發送");
-        response.put("messageId", message.getId());
-
-        return ResponseEntity.ok(response);
+            // 返回結果
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "訊息已成功發送");
+            response.put("messageId", message.getId());
+            return ResponseEntity.ok(response);
+        } catch (MqNotConnectedException e) {
+            log.error("Failed to send CustomMessage due to MQ connection issue: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "MQ service is currently unavailable. Please try again later.");
+            errorResponse.put("errorDetail", e.getMessage());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
+        } catch (Exception e) {
+            log.error("An unexpected error occurred while sending CustomMessage: {}", message, e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "An unexpected error occurred while processing your request.");
+            // Avoid exposing e.getMessage() directly for generic exceptions if it might contain sensitive info.
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
     /**
@@ -69,15 +86,29 @@ public class MessageController {
         String text = payload.get("text");
         log.info("收到發送文本訊息請求: {}", text);
 
-        // 發送文本訊息
-        messageSender.sendTextMessage(text);
+        try {
+            // 發送文本訊息
+            messageSender.sendTextMessage(text);
 
-        // 返回結果
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "文本訊息已成功發送");
-
-        return ResponseEntity.ok(response);
+            // 返回結果
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "文本訊息已成功發送");
+            return ResponseEntity.ok(response);
+        } catch (MqNotConnectedException e) {
+            log.error("Failed to send text message due to MQ connection issue: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "MQ service is currently unavailable. Please try again later.");
+            errorResponse.put("errorDetail", e.getMessage());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
+        } catch (Exception e) {
+            log.error("An unexpected error occurred while sending text message: {}", text, e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "An unexpected error occurred while processing your request.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 
     /**
@@ -90,21 +121,51 @@ public class MessageController {
     @PostMapping("send-bytes")
     public ResponseEntity<Map<String, Object>> sendByteMessage(@RequestBody Map<String, String> payload) {
         String base64Data = payload.get("data");
-        log.info("收到發送二進制數據請求: {} 字符的 Base64 數據", base64Data.length());
+        log.info("收到發送二進制數據請求: {} 字符的 Base64 數據", base64Data != null ? base64Data.length() : "null");
 
-        // 解碼 Base64 數據
-        byte[] bytes = Base64.getDecoder().decode(base64Data);
-        log.info("解碼後的二進制數據大小: {} bytes", bytes.length);
+        if (base64Data == null) {
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Missing 'data' field in request payload for byte message.");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
+        
+        byte[] bytes;
+        try {
+            bytes = Base64.getDecoder().decode(base64Data);
+            log.info("解碼後的二進制數據大小: {} bytes", bytes.length);
+        } catch (IllegalArgumentException e) {
+            log.error("Failed to decode Base64 data: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "Invalid Base64 data provided.");
+            errorResponse.put("errorDetail", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
 
-        // 發送二進制數據
-        messageSender.sendByteMessage(bytes);
+        try {
+            // 發送二進制數據
+            messageSender.sendByteMessage(bytes);
 
-        // 返回結果
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "二進制數據已成功發送");
-        response.put("byteLength", bytes.length);
-
-        return ResponseEntity.ok(response);
+            // 返回結果
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "二進制數據已成功發送");
+            response.put("byteLength", bytes.length);
+            return ResponseEntity.ok(response);
+        } catch (MqNotConnectedException e) {
+            log.error("Failed to send byte message due to MQ connection issue: {}", e.getMessage());
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "MQ service is currently unavailable. Please try again later.");
+            errorResponse.put("errorDetail", e.getMessage());
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(errorResponse);
+        } catch (Exception e) {
+            log.error("An unexpected error occurred while sending byte message (decoded length: {} bytes)", bytes.length, e);
+            Map<String, Object> errorResponse = new HashMap<>();
+            errorResponse.put("success", false);
+            errorResponse.put("message", "An unexpected error occurred while processing your request.");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
+        }
     }
 }
