@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: jms-test
+  main:
+    allow-circular-references: true
 
 # IBM MQ 配置
 ibm:
@@ -17,3 +19,6 @@ ibm:
 mq-config:
   queue-name: DEV.QUEUE.1
   message-ttl-seconds: 100
+  reconnect-interval-seconds: 30
+  max-reconnect-attempts: 5
+  reconnect-pause-minutes: 30

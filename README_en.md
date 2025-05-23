@@ -1,21 +1,39 @@
-# JMS Test Project
+# JMS Test Application
 
-This is a Spring Boot-based JMS (Java Message Service) test project for testing message sending and receiving functionality with IBM MQ. The project provides simple REST API endpoints that allow users to send messages to IBM MQ queues and configure various message properties, such as expiration time.
+This is a Spring Boot-based JMS (Java Message Service) test application using IBM MQ as the message broker. It implements message sending and receiving functionalities, and features a reconnection mechanism in case of MQ connection interruptions.
 
 ## Features
 
-- Based on Spring Boot 3.4.5 and Java 21
-- Integrates IBM MQ JMS Spring Boot Starter
-- Supports sending object messages, text messages, and binary data
-- Automatic message expiration (currently set to 10 seconds)
-- RESTful API interface
-- Extensible message processing architecture
+- Supports sending and receiving various message types:
+  - Custom Object Message (CustomMessage)
+  - Text Message (TextMessage)
+  - Bytes Message (BytesMessage)
+- Comprehensive MQ Connection Management:
+  - Automatic reconnection mechanism
+  - Connection status monitoring
+  - Manual reconnection trigger
+- RESTful API Interface:
+  - Message sending API
+  - Connection status query and management API
+- Disconnection Reconnection Mechanism:
+  - MessageSender checks connection status before sending messages
+  - MessageReceiver checks connection status when receiving messages
+  - JmsLifecycleManagerService manages JMS listener lifecycle
+
+## Technical Architecture
+
+- **Spring Boot 3.5.0**: Application framework
+- **IBM MQ JMS Spring Boot Starter**: Spring Boot integration for IBM MQ
+- **Spring Web**: RESTful API support
+- **Spring Actuator**: Application monitoring
+- **Lombok**: Simplifies Java code
+- **Springdoc OpenAPI**: API documentation generation
 
 ## System Requirements
 
 - Java 21 or higher
 - Maven 3.8+ (or use the included Maven Wrapper)
-- IBM MQ server (local or remote)
+- IBM MQ Server (local or remote)
 
 ## Quick Start
 
@@ -23,14 +41,30 @@ This is a Spring Boot-based JMS (Java Message Service) test project for testing 
 
 Configure your IBM MQ connection parameters in `src/main/resources/application.yml`:
 
+#### IBM MQ Connection Parameters (provided by `ibm-mq-spring-boot-starter`)
 ```yaml
 ibm:
   mq:
-    queue-manager: MQJ006D
-    channel: DEV.ADMIN.SVRCONN
-    conn-name: localhost(3434)
-    user: mqm
+    queue-manager: MQJ006D      # MQ Queue Manager name
+    channel: DEV.ADMIN.SVRCONN  # MQ Channel name
+    conn-name: localhost(3434)  # MQ Connection address and port, e.g., host(port)
+    user: mqm                   # MQ Connection username (if the MQ server has security settings)
+    # password: yourpassword    # MQ Connection password (if the MQ server has security settings)
 ```
+
+#### Application-Specific MQ Configuration (used by `MqConfig.java` in this project)
+```yaml
+mq-config:
+  queueName: YOUR_TARGET_QUEUE_NAME # Name of the queue to send/receive messages
+  messageTtlSeconds: 10           # Default message expiration time (seconds)
+  reconnectIntervalSeconds: 30    # MQ connection retry interval (seconds)
+  maxReconnectAttempts: 30        # Maximum number of attempts before pausing reconnection
+  reconnectPauseMinutes: 30       # Pause duration after reaching max attempts (minutes)
+```
+**Additional Configuration Explanation:**
+- `reconnectIntervalSeconds`: The interval (in seconds) at which the application attempts to reconnect to the MQ server.
+- `maxReconnectAttempts`: After failing to connect this many times, the application will pause reconnection attempts.
+- `reconnectPauseMinutes`: The duration (in minutes) for which the application will pause after reaching the maximum reconnection attempts before retrying again.
 
 ### 2. Start the Application
 
@@ -40,32 +74,58 @@ Start the application using Maven:
 ./mvnw spring-boot:run
 ```
 
-Or execute directly with Java:
+Or execute directly using Java:
 
 ```bash
 ./mvnw clean package
 java -jar target/jms-test-0.0.1-SNAPSHOT.jar
 ```
 
-### 3. Send Messages
+### 3. MQ Disconnection Reconnection Mechanism
 
-#### Send Object Message
+This application implements a comprehensive MQ disconnection reconnection mechanism:
+
+#### Connection Status Monitoring
+- MqConnectionService maintains the connection status using AtomicBoolean for thread safety
+- Periodically checks the connection status and attempts to reconnect (every `reconnectIntervalSeconds` seconds)
+- If reconnection fails consecutively `maxReconnectAttempts` times, the reconnection mechanism will pause for `reconnectPauseMinutes` minutes
+
+#### Event Publication Mechanism
+- Publishes a ConnectionPausedEvent event when the connection is paused
+- Publishes a ConnectionResumedEvent event when the connection is restored
+- JmsLifecycleManagerService listens for these events and manages the JMS listener lifecycle
+
+#### JMS Listener Lifecycle Management
+- JmsListenerContainerFactory is configured not to start automatically
+- Stops the JMS listener when the connection is interrupted to avoid invalid message processing
+- Starts the JMS listener when the connection is restored to resume message processing
+
+#### Message Sending and Receiving Handling
+- MessageSender checks the connection status before sending messages and throws MqNotConnectedException if the connection is interrupted
+- MessageReceiver checks the connection status before processing messages and throws JMSException if the connection is interrupted
+- The controller layer catches these exceptions and returns appropriate HTTP status codes and error messages
+
+### 4. API Endpoints
+
+#### Sending Messages
+
+##### Send Object Message
 
 ```bash
 curl -X POST http://localhost:8080/api/messages/send \
   -H "Content-Type: application/json" \
-  -d '{"content":"這是一條測試訊息"}'
+  -d '{"content":"This is a test message"}'
 ```
 
-#### Send Text Message
+##### Send Text Message
 
 ```bash
 curl -X POST http://localhost:8080/api/messages/send-text \
   -H "Content-Type: application/json" \
-  -d '{"text":"這是一條純文本測試訊息"}'
+  -d '{"text":"This is a plain text test message"}'
 ```
 
-#### Send Binary Data
+##### Send Binary Data
 
 ```bash
 curl -X POST http://localhost:8080/api/messages/send-bytes \
@@ -75,49 +135,118 @@ curl -X POST http://localhost:8080/api/messages/send-bytes \
 
 > Note: Binary data needs to be Base64 encoded first. In the example above, "SGVsbG8gV29ybGQh" is the Base64 encoding of "Hello World!".
 
-## Project Structure
+**Message Sending Behavior Change**:
+If the MQ connection is unavailable (e.g., during a reconnection pause or if the MQ server is genuinely unreachable), the above message sending API endpoints will return an **HTTP 503 (Service Unavailable)** error with a JSON response body explaining the issue. For example:
+```json
+{
+    "success": false,
+    "message": "MQ service is currently unavailable. Please try again later.",
+    "errorDetail": "Unable to send message. MQ is not connected."
+}
+```
+
+#### MQ Connection Management API
+
+##### Manually Trigger Reconnection
+This endpoint allows manually triggering a new MQ reconnection attempt cycle. If currently in a paused state and the pause time hasn't elapsed, it won't immediately trigger, but it will reset the attempt counter (unless the pause period just ended when manually triggered).
+```bash
+curl -X POST http://localhost:8080/api/mq/reconnect/trigger
+```
+Response Example:
+```json
+{
+    "message": "Manual reconnection process triggered."
+}
+```
+
+##### Get MQ Connection Status
+This endpoint retrieves the current status of the MQ connection.
+```bash
+curl -X GET http://localhost:8080/api/mq/status
+```
+Response Example (Connected):
+```json
+{
+    "connected": true,
+    "currentAttempts": 0,
+    "pausedUntil": null
+}
+```
+Response Example (Not Connected and Retrying):
+```json
+{
+    "connected": false,
+    "currentAttempts": 5,
+    "pausedUntil": null
+}
+```
+Response Example (Not Connected and Paused):
+```json
+{
+    "connected": false,
+    "currentAttempts": 30, // Or the last value when maxReconnectAttempts was reached
+    "pausedUntil": "2023-10-27T15:30:00.123456" // Time when the pause ends
+}
+```
+
+## File Structure
 
 ```
 src/main/java/com/vance/jms/
 ├── config/
-│   └── JmsConfig.java           # JMS Configuration Class
-├── constant/
-│   └── Constant.java            # Constant Definitions
+│   ├── JmsConfig.java           # JMS Configuration class
+│   └── MqConfig.java            # MQ Configuration class
 ├── controller/
-│   └── MessageController.java   # REST API Controller
+│   ├── ConnectionController.java # MQ Connection Management API Controller
+│   └── MessageController.java   # Message Sending API Controller
+├── event/
+│   ├── ConnectionPausedEvent.java # MQ Connection Paused Event
+│   └── ConnectionResumedEvent.java # MQ Connection Resumed Event
+├── exception/
+│   └── MqNotConnectedException.java # MQ Not Connected Exception
 ├── model/
-│   └── Message.java             # Message Model Class
+│   └── CustomMessage.java       # Custom Message Model
 ├── service/
+│   ├── JmsLifecycleManagerService.java # JMS Lifecycle Management Service
+│   ├── MessageReceiver.java     # Message Receiving Service
 │   ├── MessageSender.java       # Message Sending Service
-│   └── MessageReceiver.java     # Message Receiving Service
+│   └── MqConnectionService.java # MQ Connection Management Service
 └── JmsTestApplication.java      # Application Entry Point
 ```
 
-## To-Do and Future Test Plans
+## Important Class Descriptions
 
-The following are future tests and feature extensions that can be performed:
+- **JmsTestApplication**: Application entry point, enables JMS and scheduling features
+- **MessageSender**: Responsible for sending messages and checking the MQ connection status before sending
+- **MessageReceiver**: Responsible for receiving and processing messages and checking the MQ connection status before processing
+- **MqConnectionService**: Manages the MQ connection status and provides a reconnection mechanism
+- **JmsLifecycleManagerService**: Manages the lifecycle of JMS listeners based on the MQ connection status
+
+## To-Do and Future Testing Plans
+
+The following are tests and feature extensions that can be performed in the future:
 
 ### Basic Functionality Testing
 
 - [x] Test sending and receiving different types of messages (JSON, text, binary, etc.)
-- [ ] Test sending and receiving other message formats (XML, etc.)
+- [x] **Test error handling when the MQ connection is interrupted (partially implemented through the automatic reconnection mechanism)**
+- [ ] Test sending and receiving messages in other formats (XML, etc.)
 - [ ] Test the batch processing capability of large numbers of messages
 - [ ] Test message persistence and non-persistence modes
 - [ ] Verify the message expiration mechanism in different scenarios
 
 ### Performance Testing
 
-- [ ] Conduct high-concurrency message sending tests (messages processed per second)
+- [ ] Conduct high-concurrency message sending tests (number of messages processed per second)
 - [ ] Measure message processing latency
 - [ ] Evaluate system stability under high load
 - [ ] Test memory usage during long-term operation
 
 ### Error Handling and Recovery
 
-- [ ] Test error handling when the MQ connection is interrupted
-- [ ] Implement and test message retry mechanisms
+- [x] **Implement and test message retry mechanism (application-level MQ connection retry)**
 - [ ] Test the dead-letter queue functionality when message processing fails
-- [ ] Develop and test transactional support for message processing
+- [ ] Develop and test transaction support for message processing
 
 ### Security Testing
 
@@ -129,18 +258,18 @@ The following are future tests and feature extensions that can be performed:
 ### Feature Expansion
 
 - [ ] Implement message priority setting functionality
-- [ ] Add message confirmation receipt mechanism
+- [ ] Add a message confirmation receipt mechanism
 - [ ] Develop message routing functionality (based on content or headers)
 - [ ] Implement message filter functionality
 - [ ] Add message compression functionality to improve efficiency
-- [ ] Develop message converters to support conversions between different formats
+- [ ] Develop message converters to support conversion between different formats
 
 ### Monitoring and Management
 
-- [ ] Integrate Spring Boot Actuator to provide health check endpoints
-- [ ] Implement monitoring metrics for JMS connections and queues
+- [x] **Implement monitoring metrics for JMS connections and queues (partially implemented through the `/api/mq/status` endpoint)**
+- [ ] Integrate Spring Boot Actuator to provide more comprehensive health check endpoints
 - [ ] Develop a management console to view message status
-- [ ] Add an alerting mechanism to notify of abnormal situations
+- [ ] Add an alert mechanism to notify of abnormal situations
 
 ### Integration Testing
 
@@ -151,14 +280,14 @@ The following are future tests and feature extensions that can be performed:
 
 ### Documentation and Examples
 
-- [ ] Write detailed API documentation
-- [ ] Provide sample code for various usage scenarios
+- [x] **Write detailed API documentation (updated with new endpoints)**
+- [ ] Provide example code for various usage scenarios
 - [ ] Create a performance test report template
-- [ ] Write deployment guides and best practices
+- [ ] Write a deployment guide and best practices
 
 ## Contribution Guidelines
 
-Feel free to submit Pull Requests or open Issues to improve this project. Before submitting code, please ensure that:
+Welcome to submit Pull Requests or open Issues to improve this project. Before submitting code, please ensure that:
 
 1. The code conforms to the project's coding style
 2. Appropriate unit tests have been added
