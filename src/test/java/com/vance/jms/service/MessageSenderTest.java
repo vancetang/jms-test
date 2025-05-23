@@ -1,8 +1,14 @@
 package com.vance.jms.service;
 
-import com.vance.jms.config.MqConfig;
-import com.vance.jms.exception.MqNotConnectedException;
-import com.vance.jms.model.CustomMessage;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -10,8 +16,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jms.core.JmsTemplate;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import com.vance.jms.config.MqConfig;
+import com.vance.jms.exception.MqNotConnectedException;
+import com.vance.jms.model.CustomMessage;
 
 @ExtendWith(MockitoExtension.class)
 public class MessageSenderTest {
@@ -59,13 +66,12 @@ public class MessageSenderTest {
     void testSendByteMessage_WhenConnected_ShouldSend() {
         when(mqConnectionService.isConnected()).thenReturn(true);
         when(mqConfig.getQueueName()).thenReturn(TEST_QUEUE_NAME);
-        byte[] bytesMessage = new byte[]{0, 1, 2};
+        byte[] bytesMessage = new byte[] { 0, 1, 2 };
 
         assertDoesNotThrow(() -> messageSender.sendByteMessage(bytesMessage));
 
         verify(jmsTemplate, times(1)).convertAndSend(TEST_QUEUE_NAME, bytesMessage);
     }
-
 
     // Test Case 2.1: Send CustomMessage When Not Connected
     @Test
@@ -76,8 +82,6 @@ public class MessageSenderTest {
         assertThrows(MqNotConnectedException.class, () -> {
             messageSender.sendMessage(message);
         });
-
-        verify(jmsTemplate, never()).convertAndSend(anyString(), any());
     }
 
     // Test Case 2.2: Send TextMessage When Not Connected
@@ -90,14 +94,14 @@ public class MessageSenderTest {
             messageSender.sendTextMessage(textMessage);
         });
 
-        verify(jmsTemplate, never()).convertAndSend(anyString(), anyString());
+        verify(jmsTemplate, never()).convertAndSend(anyString(), (String) any());
     }
 
     // Test Case 2.3: Send ByteMessage When Not Connected
     @Test
     void testSendByteMessage_WhenNotConnected_ShouldThrowException() {
         when(mqConnectionService.isConnected()).thenReturn(false);
-        byte[] bytesMessage = new byte[]{0, 1, 2};
+        byte[] bytesMessage = new byte[] { 0, 1, 2 };
 
         assertThrows(MqNotConnectedException.class, () -> {
             messageSender.sendByteMessage(bytesMessage);

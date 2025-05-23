@@ -5,9 +5,8 @@ import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 
 import com.vance.jms.config.MqConfig;
-import com.vance.jms.model.CustomMessage;
 import com.vance.jms.exception.MqNotConnectedException; // Added import
-import com.vance.jms.service.MqConnectionService;   // Added import
+import com.vance.jms.model.CustomMessage;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,15 +24,7 @@ public class MessageSender {
     MqConfig mqConfig;
 
     @Autowired
-    private MqConnectionService mqConnectionService; // Added field
-
-    // Constructor injection is not used here due to field autowiring preference in this class.
-    // If constructor injection was preferred:
-    // public MessageSender(JmsTemplate jmsTemplate, MqConfig mqConfig, MqConnectionService mqConnectionService) {
-    //     this.jmsTemplate = jmsTemplate;
-    //     this.mqConfig = mqConfig;
-    //     this.mqConnectionService = mqConnectionService;
-    // }
+    private MqConnectionService mqConnectionService;
 
     /**
      * 發送訊息到指定隊列，訊息將在指定秒後自動過期

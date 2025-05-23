@@ -2,6 +2,7 @@ package com.vance.jms.service;
 
 import java.io.Serializable;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.stereotype.Service;
 
@@ -16,19 +17,29 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * 訊息接收服務
+ * 使用 JmsLifecycleManagerService 實現 MQ 斷線時的重新連線機制
  */
 @Slf4j
 @Service
 public class MessageReceiver {
+
+    @Autowired
+    private MqConnectionService mqConnectionService;
 
     /**
      * 單一監聽器方法，根據訊息類型分派處理
      *
      * @param message 接收到的原始 JMS 訊息
      */
-    @JmsListener(destination = "#{@mqConfig.queueName}", containerFactory = "jmsListenerContainerFactory")
+    @JmsListener(destination = "#{@mqConfig.queueName}", containerFactory = "jmsListenerContainerFactory", id = "mainMessageListener")
     public void onMessage(Message message) {
         try {
+            // 檢查 MQ 連接狀態
+            if (!mqConnectionService.isConnected()) {
+                log.warn("MQ 連接已中斷，無法處理訊息。訊息將被放回隊列或丟棄。");
+                throw new JMSException("MQ 連接已中斷");
+            }
+
             if (message instanceof TextMessage) {
                 String text = ((TextMessage) message).getText();
                 handleTextMessage(text);
@@ -51,7 +62,8 @@ public class MessageReceiver {
             }
         } catch (JMSException e) {
             log.error("處理 JMS 訊息時發生錯誤", e);
-            // 處理 JMS 異常
+            // 當 MQ 連接中斷時，JmsLifecycleManagerService 會停止監聽器，
+            // 所以這裡不需要額外處理
         } catch (Exception e) {
             log.error("處理訊息時發生未知錯誤", e);
             // 處理其他異常
@@ -87,4 +99,5 @@ public class MessageReceiver {
         log.info("處理二進制數據訊息: {} bytes", bytes.length);
         // 在這裡添加處理二進制數據的邏輯
     }
+
 }

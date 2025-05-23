@@ -1,17 +1,33 @@
-# JMS Test 專案
+# JMS 測試應用程式
 
-這是一個基於 Spring Boot 的 JMS (Java Message Service) 測試專案，用於測試與 IBM MQ 的訊息傳送和接收功能。專案提供了簡單的 REST API 端點，允許使用者發送訊息到 IBM MQ 隊列，並可以配置訊息的各種屬性，如過期時間等。
+這是一個基於 Spring Boot 的 JMS (Java Message Service) 測試應用程式，使用 IBM MQ 作為訊息中介軟體，實現了訊息的發送和接收功能，並具備 MQ 連線中斷時的重新連線機制。
 
 ## 功能特點
 
-- 基於 Spring Boot 3.4.5 和 Java 21
-- 整合 IBM MQ JMS Spring Boot Starter
-- 支援發送物件訊息、文本訊息和二進制數據
-- 訊息自動過期功能
-- **新增 MQ 自動重連機制**
-- **新增 MQ 連接管理 API 端點**
-- RESTful API 介面
-- 可擴展的訊息處理架構
+- 支援多種訊息類型的發送和接收：
+  - 自定義物件訊息 (CustomMessage)
+  - 文本訊息 (TextMessage)
+  - 二進制訊息 (BytesMessage)
+- 完整的 MQ 連線管理：
+  - 自動重新連線機制
+  - 連線狀態監控
+  - 手動觸發重新連線
+- RESTful API 介面：
+  - 訊息發送 API
+  - 連線狀態查詢和管理 API
+- 斷線重連機制：
+  - MessageSender 發送訊息前檢查連線狀態
+  - MessageReceiver 接收訊息時檢查連線狀態
+  - JmsLifecycleManagerService 管理 JMS 監聽器生命週期
+
+## 技術架構
+
+- **Spring Boot 3.5.0**：應用程式框架
+- **IBM MQ JMS Spring Boot Starter**：IBM MQ 的 Spring Boot 整合
+- **Spring Web**：RESTful API 支援
+- **Spring Actuator**：應用程式監控
+- **Lombok**：簡化 Java 程式碼
+- **Springdoc OpenAPI**：API 文檔生成
 
 ## 系統需求
 
@@ -65,14 +81,29 @@ mq-config:
 java -jar target/jms-test-0.0.1-SNAPSHOT.jar
 ```
 
-### 3. MQ 自動重連機制
+### 3. MQ 斷線重連機制
 
-本應用程式現在包含一個自動重連機制，用於處理與 IBM MQ 伺服器的連接中斷。
+本應用程式實現了完整的 MQ 斷線重連機制：
 
-**行為描述:**
-- 當偵測到連接丟失時，應用程式會每隔 `reconnectIntervalSeconds`（預設30秒）自動嘗試重新連接。
-- 如果連續失敗達到 `maxReconnectAttempts`（預設30次），重連機制將會暫停 `reconnectPauseMinutes`（預設30分鐘），然後再次開始嘗試連接。
-- **重要**: 在連接暫停期間，所有 JMS 訊息監聽器 (MessageReceiver) 將會自動停止，以防止因連接問題導致的錯誤。一旦 MQ 連接成功恢復，這些監聽器將會自動重新啟動。
+#### 連線狀態監控
+- MqConnectionService 維護連線狀態，使用 AtomicBoolean 確保線程安全
+- 定期檢查連線狀態並嘗試重新連線（每隔 `reconnectIntervalSeconds` 秒）
+- 如果連續失敗達到 `maxReconnectAttempts` 次，重連機制將暫停 `reconnectPauseMinutes` 分鐘
+
+#### 事件發布機制
+- 連線暫停時發布 ConnectionPausedEvent 事件
+- 連線恢復時發布 ConnectionResumedEvent 事件
+- JmsLifecycleManagerService 監聽這些事件並管理 JMS 監聽器生命週期
+
+#### JMS 監聽器生命週期管理
+- JmsListenerContainerFactory 設定為不自動啟動
+- 連線中斷時停止 JMS 監聽器，避免無效的消息處理
+- 連線恢復時啟動 JMS 監聽器，恢復消息處理
+
+#### 訊息發送與接收處理
+- MessageSender 在發送訊息前檢查連線狀態，如果連線中斷則拋出 MqNotConnectedException
+- MessageReceiver 在處理訊息前檢查連線狀態，如果連線中斷則拋出 JMSException
+- 控制器層捕獲這些異常並返回適當的 HTTP 狀態碼和錯誤訊息
 
 ### 4. API 端點
 
@@ -105,12 +136,12 @@ curl -X POST http://localhost:8080/api/messages/send-bytes \
 > 注意：二進制數據需要先進行 Base64 編碼。上面的例子中，"SGVsbG8gV29ybGQh" 是 "Hello World!" 的 Base64 編碼。
 
 **訊息發送行為變更**:
-如果 MQ 連接不可用（例如，在重連暫停期間或 MQ 伺服器確實無法訪問），上述發送訊息的 API 端點現在將返回 **HTTP 503 (Service Unavailable)** 錯誤，並附帶一個 JSON 回應體，說明問題。例如：
+如果 MQ 連接不可用（例如，在重連暫停期間或 MQ 伺服器確實無法訪問），上述發送訊息的 API 端點將返回 **HTTP 503 (Service Unavailable)** 錯誤，並附帶一個 JSON 回應體，說明問題。例如：
 ```json
 {
     "success": false,
-    "message": "MQ service is currently unavailable. Please try again later.",
-    "errorDetail": "Cannot send message. MQ is not connected."
+    "message": "MQ 服務目前不可用。請稍後再試。",
+    "errorDetail": "無法發送訊息。MQ 未連接。"
 }
 ```
 
@@ -124,7 +155,7 @@ curl -X POST http://localhost:8080/api/mq/reconnect/trigger
 回應示例:
 ```json
 {
-    "message": "Manual reconnection process triggered."
+    "message": "已觸發手動重新連接程序。"
 }
 ```
 
@@ -158,33 +189,38 @@ curl -X GET http://localhost:8080/api/mq/status
 }
 ```
 
-## 專案結構
+## 檔案結構
 
 ```
 src/main/java/com/vance/jms/
 ├── config/
 │   ├── JmsConfig.java           # JMS 配置類
-│   └── MqConfig.java            # MQ 特定配置 (隊列名, TTL, 重連參數)
-├── constant/
-│   └── Constant.java            # 常量定義
+│   └── MqConfig.java            # MQ 配置類
 ├── controller/
-│   ├── ConnectionController.java # MQ 連接管理 API 控制器
+│   ├── ConnectionController.java # MQ 連線管理 API 控制器
 │   └── MessageController.java   # 訊息發送 API 控制器
-├── event/                      # 應用程式事件
-│   ├── ConnectionPausedEvent.java
-│   └── ConnectionResumedEvent.java
-├── exception/                  # 自定義異常
-│   └── MqNotConnectedException.java
+├── event/
+│   ├── ConnectionPausedEvent.java # MQ 連線暫停事件
+│   └── ConnectionResumedEvent.java # MQ 連線恢復事件
+├── exception/
+│   └── MqNotConnectedException.java # MQ 未連線異常
 ├── model/
-│   └── CustomMessage.java       # 訊息模型類 (原 Message.java)
+│   └── CustomMessage.java       # 自定義訊息模型
 ├── service/
-│   ├── JmsLifecycleManagerService.java # JMS 監聽器生命週期管理
-│   ├── MessageSender.java       # 訊息發送服務
+│   ├── JmsLifecycleManagerService.java # JMS 生命週期管理服務
 │   ├── MessageReceiver.java     # 訊息接收服務
-│   └── MqConnectionService.java # MQ 連接與重連服務
+│   ├── MessageSender.java       # 訊息發送服務
+│   └── MqConnectionService.java # MQ 連線管理服務
 └── JmsTestApplication.java      # 應用程式入口
 ```
-*(專案結構已更新以反映最新更改)*
+
+## 重要類說明
+
+- **JmsTestApplication**：應用程式入口點，啟用 JMS 和排程功能
+- **MessageSender**：負責發送訊息，並在發送前檢查 MQ 連線狀態
+- **MessageReceiver**：負責接收和處理訊息，並在處理前檢查 MQ 連線狀態
+- **MqConnectionService**：管理 MQ 連線狀態，提供重新連線機制
+- **JmsLifecycleManagerService**：根據 MQ 連線狀態管理 JMS 監聽器的生命週期
 
 ## 待辦事項與未來測試計劃
 

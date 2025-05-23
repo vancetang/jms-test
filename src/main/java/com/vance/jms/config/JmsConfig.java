@@ -30,21 +30,27 @@ public class JmsConfig {
     MqConfig mqConfig;
 
     @Autowired
-    JmsListenerEndpointRegistry jmsListenerEndpointRegistry; // Added field
+    JmsListenerEndpointRegistry jmsListenerEndpointRegistry; // JMS 監聽器端點註冊表
 
     @Autowired
-    MqConnectionService mqConnectionService; // Added field
+    MqConnectionService mqConnectionService; // MQ 連接服務
 
     /**
      * 配置 JMS 監聽器容器工廠
+     * 設定為不自動啟動，由 MqConnectionService 控制啟動時機
      */
     @Bean
     public JmsListenerContainerFactory<?> jmsListenerContainerFactory(ConnectionFactory connectionFactory) {
         DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(jacksonJmsMessageConverter());
-        // Future: Could integrate with mqConnectionService to stop/start listeners
-        // based on connection state events.
+
+        // 設定為不自動啟動，由 MqConnectionService 控制啟動時機
+        factory.setAutoStartup(false);
+
+        // 設定重試間隔和策略，與 MqConnectionService 保持一致
+        factory.setRecoveryInterval(mqConfig.getReconnectIntervalSeconds() * 1000L);
+
         return factory;
     }
 
