@@ -207,22 +207,9 @@ public class MqConnectionService {
      * 可以通過 API 端點或其他管理介面調用。
      */
     public void triggerManualReconnect() {
-        log.info("已觸發手動重新連接。");
-        if (pausedUntil != null && LocalDateTime.now().isBefore(pausedUntil)) {
-            log.warn("暫停期間嘗試手動重新連接。暫停結束於 {}。未採取任何行動。",
-                    pausedUntil);
-            return;
-        }
-        if (pausedUntil != null && LocalDateTime.now().isAfter(pausedUntil)) {
-            log.info("手動觸發發現暫停期剛剛結束。重置以進行新的嘗試。");
-            wasPaused = true; // 將此視為從暫停狀態恢復
-        }
-
-        // 如果手動觸發應繞過當前計數，則重置嘗試次數，除非處於尚未結束的暫停期。
-        if (pausedUntil == null) {
-            log.info("為手動觸發重置重新連接嘗試次數（當前未暫停）。");
-            currentReconnectAttempts.set(0);
-        }
+        log.info("手動觸發重置重新連接嘗試次數及暫停時間。");
+        pausedUntil = null;
+        currentReconnectAttempts.set(0);
         checkAndEstablishConnection();
     }
 
